@@ -65,7 +65,7 @@ make -f make/makefile_RequestReplyPrimes_x64Linux3gcc5.4.0
 	```
  ![](images/helloworldreqrep_sub.png)
  
-#Conclusion
+# Conclusion
 
 1. We have successfully installed and run RTI-DDS Connext 6.0.1 on an Virtual Ubuntu Instance running on Vagrant
 2. This Instance will be our development environment for further development,testing & etc
