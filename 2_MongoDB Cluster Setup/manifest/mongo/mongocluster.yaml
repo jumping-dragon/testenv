@@ -1,0 +1,104 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  labels:
+    name: mongo
+spec:
+  ports:
+  - name: mongodb
+    port: 27017
+    targetPort: 27017
+  clusterIP: None
+  selector:
+    role: mongo
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+spec:
+  selector:
+    matchLabels:
+      environment: test
+  serviceName: "mongo"
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        role: mongo
+        environment: test
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: mongo
+          image: elztha/mongorep:v2
+          args:
+            - mongod
+            - "--replSet"
+            - rs0
+            - "--bind_ip"
+            - 0.0.0.0
+            - "--smallfiles"
+            - "--noprealloc"
+            - --clusterAuthMode
+            - keyFile
+            - --keyFile
+            - /data/config/mongodb-keyfile
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: admin
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: "12345678"
+          resources:
+           # limits:
+           #   cpu: "3"
+           #   memory: "26Gi"
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongo-persistent-storage
+              mountPath: /data/db
+            - mountPath: /docker-entrypoint-initdb.d
+              name: mongo-init-js
+        - name: mongo-sidecar
+          image: cvallance/mongo-k8s-sidecar
+          env:
+            - name: MONGO_SIDECAR_POD_LABELS
+              value: "role=mongo,environment=test"
+            - name: KUBERNETES_MONGO_SERVICE_NAME
+              value: mongo
+            - name: MONGODB_USERNAME
+              value: admin
+            - name: MONGODB_PASSWORD
+              value: "12345678"
+            - name: MONGODB_DATABASE
+              value: admin
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: mongo-init.js
+            path: mongo-init.js
+          name: mongo-init-js
+        name: mongo-init-js
+      #nodeSelector:
+       #disktype: ssd
+      #- name: mongo-persistent-storage
+      #  persistentVolumeClaim:
+      #      claimName: myclaim
+  volumeClaimTemplates:
+  - metadata:
+      name: mongo-persistent-storage
+      annotations:
+        volume.alpha.kubernetes.io/storage-class: "my-nfs-storage"
+    spec:
+      accessModes:
+        - "ReadWriteOnce"
+      resources:
+        requests:
+         storage: 1Gi
